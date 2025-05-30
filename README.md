@@ -35,6 +35,7 @@ This project demonstrates how to create and test phishing emails for educational
   ```
 - Use the MailHog option in the script to send emails to `localhost:1025`.
 - Open the MailHog web interface (usually at `http://localhost:8025`) to view captured emails.
+- The html file will aslo be saved in the local directory.
 
 ## Authors
 - Dor Cohen - 211896279
