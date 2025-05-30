@@ -4,6 +4,8 @@
 
 from email.message import EmailMessage
 import requests
+import re
+import smtplib
 
 # Embedded Gmail-like HTML template with placeholders
 TEMPLATE_HTML = '''<!DOCTYPE html>
@@ -93,85 +95,266 @@ def read_benign_email(source: str, source_type: str) -> str:
 
 def merge_benign_email(benign_email: str, data: dict, source_type: str) -> dict:
     """Merge benign email content with user data based on source type."""
-    if source_type == 'url':
-        # Use the entire email template from the URL and inject the malicious link
-        data['html_body'] = benign_email.replace(
-            '</body>',
-            f'<p><a href=\"https://secure-{data["company_name"].lower()}.com/verify?user={data["username"].replace(" ", "%20")}\">Verify your account</a></p></body>'
-        )
-    elif source_type == 'string':
-        # Extract sender and subject to make the email more credible
-        lines = benign_email.splitlines()
-        subject_line = next((line for line in lines if line.lower().startswith('subject:')), 'Subject: No Subject')
-        data['subject'] = subject_line.split(':', 1)[1].strip() if ':' in subject_line else 'No Subject'
-        sender_line = next((line for line in lines if line.lower().startswith('from:')), 'From: Unknown Sender')
-        data['sender'] = sender_line.split(':', 1)[1].strip() if ':' in sender_line else 'Unknown Sender'
-    elif source_type == 'file':
-        # Treat the file content similarly to a string
-        lines = benign_email.splitlines()
-        subject_line = next((line for line in lines if line.lower().startswith('subject:')), 'Subject: No Subject')
-        data['subject'] = subject_line.split(':', 1)[1].strip() if ':' in subject_line else 'No Subject'
-        sender_line = next((line for line in lines if line.lower().startswith('from:')), 'From: Unknown Sender')
-        data['sender'] = sender_line.split(':', 1)[1].strip() if ':' in sender_line else 'Unknown Sender'
+    # If the source is a string, process it as a template
+    if source_type == 'string':
+        benign_email = fill_template(benign_email, data)
 
-    # Append the benign email content for inspection or further use
-    data['benign_content'] = benign_email
+    # Check for existing links in the benign email
+    link_pattern = re.compile(r'<a\s+href=["\'](.*?)["\'].*?>.*?</a>', re.IGNORECASE | re.DOTALL)
+    links = link_pattern.findall(benign_email)
+
+    # Generate the malicious link
+    malicious_link = f"https://secure-{data['mail_service'].lower()}.com/verify?user={data['username'].replace(' ', '%20')}"
+
+    if links:
+        # Replace first link with malicious link, preserving the original text
+        link_text = re.search(r'<a\s+href=["\'](.*?)["\'].*?>(.*?)</a>', benign_email, re.IGNORECASE | re.DOTALL).group(2)
+        malicious_button = f'<a href="{malicious_link}" class="button" style="display:inline-block; padding:10px 20px; background-color:#004080; color:white; text-decoration:none; border-radius:5px;">{link_text}</a>'
+        benign_email = link_pattern.sub(malicious_button, benign_email, count=1)
+    else:
+        # Add button with malicious link before closing content div
+        button_html = (
+            f'<p style="margin-top:20px;">To ensure your account security, please click the button below:</p>'
+            f'<p><a href="{malicious_link}" class="button" style="display:inline-block; padding:10px 20px; '
+            f'background-color:#004080; color:white; text-decoration:none; border-radius:5px;">'
+            f'Verify Your Account</a></p>'
+        )
+        
+        # Try to insert before the footer or at the end of content
+        if '</div>' in benign_email:
+            benign_email = benign_email.replace('</div>', f'{button_html}</div>', 1)
+        else:
+            # If no div structure found, add before </body>
+            if '</body>' in benign_email:
+                benign_email = benign_email.replace('</body>', f'{button_html}</body>')
+            else:
+                # If no body tag, just append at the end
+                benign_email += button_html
+
+    # Append the modified benign email content for inspection or further use
+    data['html_body'] = benign_email
     return data
 
-def compose_phishing_email(data: dict) -> EmailMessage:
-    """Build EmailMessage with HTML and text fallback, and save HTML to a file."""
-    if 'html_body' in data:
-        # Use the provided HTML body directly (e.g., from a URL)
-        html_body = data['html_body']
-    else:
-        # Generate the HTML body using the template
-        html_body = fill_template(TEMPLATE_HTML, data)
-
-    verify_link = (
-        f"https://secure-{data['company_name'].lower()}.com/verify?user={data['username'].replace(' ', '%20')}"
+def inject_or_replace_link(html: str, malicious_link: str) -> str:
+    """
+    אם יש קישור ב־html, החלף href בקישור הזדוני בכל תגי <a>.
+    אם אין אף קישור, הוסף כפתור בסוף ההודעה.
+    """
+    # regex למציאת כל תגי <a ... href="...">...</a>
+    anchor_pattern = re.compile(
+        r'(<a\b[^>]*\bhref=["\'])([^"\']*)(["\'][^>]*>)(.*?)(</a>)',
+        re.IGNORECASE | re.DOTALL
     )
-    sender = data.get('sender', f"{data['company_name']} Security Team")
+
+    def replace_anchor(match):
+        # מגריל את חלקי התג
+        prefix, old_url, mid, link_text, suffix = match.groups()
+        # מחזיר תג חדש עם ה־href הזדוני, ושומר טקסט וסגנון
+        return f"{prefix}{malicious_link}{mid}{link_text}{suffix}"
+
+    # אם נמצאו תגים, החלף את כל הקישורים
+    if anchor_pattern.search(html):
+        return anchor_pattern.sub(replace_anchor, html)
+    else:
+        # הוספת כפתור זדוני בסוף הגוף (לפני </body> או פשוט בסוף)
+        button_html = (
+            f'<p style="margin-top:20px;">'
+            f'<a href="{malicious_link}" '
+            f'style="display:inline-block;padding:12px 24px;'
+            f'background-color:#004080;color:#fff;'
+            f'text-decoration:none;border-radius:4px;">'
+            f'Click Here to Secure Your Account</a>'
+            f'</p>'
+        )
+        # אם יש </body>, הוסף לפניו
+        if '</body>' in html:
+            return html.replace('</body>', button_html + '</body>')
+        else:
+            return html + button_html
+
+# Update compose_phishing_email to use inject_or_replace_link
+def compose_phishing_email(data: dict) -> EmailMessage:
+    """Build EmailMessage with HTML and text fallback, injecting or replacing malicious link."""
+    # Determine HTML body
+    if 'html_body' in data:
+        html = data['html_body']
+    else:
+        html = fill_template(TEMPLATE_HTML, data)
+
+    # Generate malicious link
+    malicious_link = (
+        f"https://secure-{data['mail_service'].lower()}.com/verify?"
+        f"user={data['username'].replace(' ', '%20')}"
+    )
+
+    # Use inject_or_replace_link to handle links
+    html = inject_or_replace_link(html, malicious_link)
+
+    # Prepare EmailMessage
     msg = EmailMessage()
-    msg['From']    = f"{sender} <no-reply@{data['company_name'].lower()}.com>"
-    msg['To']      = f"{data['honorific']} {data['username']} <{data['username'].replace(' ', '.').lower()}@{data['company_name'].lower()}.com>"
-    msg['Subject'] = data['subject']
+    msg['From']    = f"{data.get('sender', data['mail_service'] + ' Security Team')} <no-reply@{data['mail_service'].lower()}.com>"
+    recipient_addr = f"{data['username'].replace(' ', '.').lower()}@{data['mail_service'].lower()}.com"
+    msg['To']      = f"{data['honorific']} {data['username']} <{recipient_addr}>"
+    msg['Subject'] = f"{data['mail_service']} Security Alert: {data['subject']}"
+
+    # Text fallback
     fallback = (
         f"Hi {data['honorific']} {data['username']},\n\n"
-        f"Please complete a quick security check: {verify_link}\n\n"
-        f"This request was initiated by your manager, {data['boss_name']}, to ensure compliance with our latest security policies.\n\n"
+        f"Please complete a quick security check: {malicious_link}\n\n"
         "Thank you,\n"
-        f"The {data['company_name']} Security Team"
+        f"The {data['mail_service']} Security Team"
     )
     msg.set_content(fallback)
-    msg.add_alternative(html_body, subtype='html')
+    msg.add_alternative(html, subtype='html')
 
-    # Save the HTML email to a file
+    # Save HTML email to file
     filename = f"phishing_email_{data['username'].replace(' ', '_').lower()}.html"
     with open(filename, 'w', encoding='utf-8') as f:
-        f.write(html_body)
+        f.write(html)
 
     return msg
 
+def send_email(email: EmailMessage, smtp_server: str, smtp_port: int, username: str, password: str):
+    """Send an email using the specified SMTP server."""
+    try:
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            if smtp_server == 'localhost' and smtp_port == 1025:
+                # MailHog does not require STARTTLS or authentication
+                server.send_message(email)
+            else:
+                server.starttls()  # Upgrade the connection to secure
+                server.login(username, password)
+                server.send_message(email)
+            print("Email sent successfully!")
+    except Exception as e:
+        print(f"Failed to send email: {e}")
+
+# Update the main function to use the imported functions
 def main():
-    data = get_user_input()
+    print("Choose an option:")
+    print("1. Create a phishing email from scratch")
+    print("2. Mimic an existing email and inject a malicious link")
+    choice = input("Enter your choice (1 or 2): ").strip()
 
-    # Ensure 'company_name' is set based on 'mail_service'
-    data['company_name'] = data.get('mail_service', 'Unknown Company')
+    if choice == '1':
+        # Option 1: Create a phishing email from scratch
+        data = get_user_input()
 
-    # Prompt user for boss's name
-    data['boss_name'] = input("Enter the name of the recipient's boss: ").strip()
+        # Ensure 'company_name' is set based on 'mail_service'
+        data['company_name'] = data.get('mail_service', 'Unknown Company')
 
-    # Get benign email input
-    benign_source = input("Enter benign email source (file path, URL, or string): ").strip()
-    source_type = input("Enter source type (file, url, string): ").strip().lower()
-    benign_email = read_benign_email(benign_source, source_type)
+        # Prompt user for boss's name
+        data['boss_name'] = input("Enter the name of the recipient's boss: ").strip()
 
-    # Merge benign email with user data
-    data = merge_benign_email(benign_email, data, source_type)
+        email = compose_phishing_email(data)
+        # Print full MIME message for inspection
+        print(email.as_string())
 
-    email = compose_phishing_email(data)
-    # Print full MIME message for inspection
-    print(email.as_string())
+        # Send the email
+        use_mailhog = input("Do you want to use MailHog for testing? (yes/no): ").strip().lower()
+        if use_mailhog == 'yes':
+            smtp_server = 'localhost'
+            smtp_port = 1025
+            username = 'no-reply@mailhog.local'  # Use a valid default email address for MailHog
+            password = ''
+        else:
+            smtp_server = input("Enter SMTP server (e.g., smtp.gmail.com): ").strip()
+            smtp_port = int(input("Enter SMTP port (e.g., 587): ").strip())
+            username = input("Enter your email username: ").strip()
+            password = input("Enter your email password: ").strip()
+
+        # Send the email
+        send_email(email, smtp_server, smtp_port, username, password)
+
+    elif choice == '2':
+        # Option 2: Mimic an existing email and inject a malicious link
+        benign_source = input("Enter benign email source (file path, URL, or string): ").strip()
+        source_type = input("Enter source type (file, url, string): ").strip().lower()
+        benign_email = read_benign_email(benign_source, source_type)
+
+        # Get required user data for the malicious link
+        print("\nNeed some details to create the malicious link:")
+        data = {
+            "username": input("Enter target's full name: ").strip(),
+            "mail_service": input("Enter company name (e.g. Google): ").strip()
+        }
+
+        # Generate the malicious link
+        malicious_link = f"https://secure-{data['mail_service'].lower()}.com/verify?user={data['username'].replace(' ', '%20')}"
+
+        # Check for existing links
+        link_pattern = re.compile(r'<a\s+href=["\']([^"\']*)["\'].*?>.*?</a>', re.IGNORECASE | re.DOTALL)
+        if link_pattern.search(benign_email):
+            # If links exist, replace the first one
+            link_text = re.search(r'<a\s+href=["\']([^"\']*)["\'].*?>(.*?)</a>', benign_email, re.IGNORECASE | re.DOTALL).group(2)
+            malicious_button = f'<a href="{malicious_link}" class="button" style="display:inline-block; padding:10px 20px; background-color:#004080; color:white; text-decoration:none; border-radius:5px;">{link_text}</a>'
+            benign_email = link_pattern.sub(malicious_button, benign_email, count=1)
+        else:
+            # If no links exist, add malicious button
+            button_html = (
+                f'<p style="margin-top:20px;">To ensure your account security, please click the button below:</p>'
+                f'<p><a href="{malicious_link}" class="button" style="display:inline-block; padding:10px 20px; '
+                f'background-color:#004080; color:white; text-decoration:none; border-radius:5px;">'
+                f'Verify Your Account</a></p>'
+            )
+            
+            # Try different positions to insert the button
+            if '<div class="content">' in benign_email:
+                # Add after content div starts
+                content_pos = benign_email.find('<div class="content">') + len('<div class="content">')
+                benign_email = benign_email[:content_pos] + button_html + benign_email[content_pos:]
+            elif '</body>' in benign_email:
+                # Add before body ends
+                benign_email = benign_email.replace('</body>', f'{button_html}</body>')
+            else:
+                # Just add at the end if no other good position found
+                benign_email += button_html
+
+        # Save the modified email to a file
+        filename = "mimicked_email_with_malicious_link.html"
+        with open(filename, 'w', encoding='utf-8') as f:
+            f.write(benign_email)
+
+        print(f"Modified email saved to {filename}")
+
+        # Send the email
+        use_mailhog = input("Do you want to use MailHog for testing? (yes/no): ").strip().lower()
+        if use_mailhog == 'yes':
+            smtp_server = 'localhost'
+            smtp_port = 1025
+            username = 'no-reply@mailhog.local'  # Use a valid default email address for MailHog
+            password = ''
+        else:
+            smtp_server = input("Enter SMTP server (e.g., smtp.gmail.com): ").strip()
+            smtp_port = int(input("Enter SMTP port (e.g., 587): ").strip())
+            username = input("Enter your email username: ").strip()
+            password = input("Enter your email password: ").strip()
+        email = EmailMessage()
+        email.set_content(benign_email, subtype='html')
+        email['Subject'] = "Mimicked Email with Malicious Link"
+        email['From'] = username if username else 'no-reply@mailhog.local'
+        email['To'] = input("Enter recipient email address: ").strip()
+        send_email(email, smtp_server, smtp_port, username, password)
+
+    else:
+        print("Invalid choice. Please run the script again and choose 1 or 2.")
 
 if __name__ == '__main__':
+    print("""
+    ======================================
+    Email Spoofing Script
+    ======================================
+    Authors: Dor Cohen, Baruh Ifraimov
+
+    This script allows you to:
+    1. Create a phishing email from scratch.
+    2. Mimic an existing email and inject a malicious link.
+
+    Usage:
+    - Run the script and follow the prompts.
+    - Use MailHog for safe local testing of emails.
+
+    Disclaimer: This script is for educational purposes only. Do not use it for malicious activities.
+    ======================================
+    """)
     main()
