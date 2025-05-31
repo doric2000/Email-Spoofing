@@ -42,4 +42,4 @@ This project demonstrates how to create and test phishing emails for educational
 - Baruh Ifraimov - 208526012
 
 ## Disclaimer
-This project is for educational purposes only. Do not use it for malicious activities. The authors are not responsible for any misuse of this script.
+This project is for educational purposes only. Do not use it for malicious activities. The authors are not responsible for any misuse of this script. Be warned!
