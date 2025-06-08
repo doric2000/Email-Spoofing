@@ -156,7 +156,7 @@ sudo mv MailHog_linux_amd64 /usr/local/bin/mailhog
 sudo systemctl start bind9
 
 # Optional: Start MailHog for email testing
-mailhog &
+MailHog &
 ```
 
 ### Step 2: Generate Phishing Email
