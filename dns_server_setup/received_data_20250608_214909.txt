@@ -1,0 +1,2 @@
+user:X|hostname:X|os_info:X|ip:X|languages:X|os_version:X
+|password:X

@@ -1,0 +1,50 @@
+options {
+    directory "/var/cache/bind";
+
+    // Allow queries from local network
+    allow-query { 
+        localhost; 
+        10.211.55.0/24;  // Your local network
+    };
+    
+    // Allow recursion for local network
+    allow-recursion { 
+        localhost; 
+        10.211.55.0/24; 
+    };
+    
+    // Forward DNS queries to external DNS servers
+    forwarders {
+        8.8.8.8;        // Google DNS
+        8.8.4.4;        // Google DNS
+        1.1.1.1;        // Cloudflare DNS
+    };
+    
+    // Enable forwarding
+    forward only;
+    
+    // Listen on all interfaces
+    listen-on { any; };
+    listen-on-v6 { any; };
+    
+    // Disable version queries for security
+    version none;
+    
+    // Enable DNSSEC validation
+    dnssec-validation auto;
+    
+    auth-nxdomain no;    # conform to RFC1035
+}; // End of options block
+
+// Query Logging Configuration
+logging {
+  channel query_log {
+    file "/var/log/named/query.log" versions 5 size 10m; // Log to a specific file, roll over logs
+    severity info;                                      // Log informational messages (includes queries)
+    print-time yes;                                     // Include timestamp
+    print-severity yes;                                 // Include severity level
+    print-category yes;                                 // Include log category
+  };
+  category queries { query_log; };                       // Log all queries to the query_log channel
+  category default { query_log; }; // Also send default logs here for more context if needed
+};

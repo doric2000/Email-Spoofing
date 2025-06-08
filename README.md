@@ -44,7 +44,9 @@ The setup script will automatically:
 - Set up DNS client resolution
 - Optionally install MailHog for email testing
 
-### Manual Installation
+-----
+
+## Manual Installation
 Follow the detailed steps below if you prefer manual installation or need to customize the setup.
 
 ## Prerequisites
@@ -119,12 +121,19 @@ $TTL    604800
 sudo nano /etc/systemd/resolved.conf
 ```
 
-Add or modify:
+Uncomment and modify the following lines:
 ```
 [Resolve]
-DNS=127.0.0.1
-Domains=attacker.local
+DNS=X.X.X.X <-- YOUR DNS SERVER IP
+#FallbackDNS=8.8.8.8
+Domains= <domain> <-- YOUR DOMAIN NAME
 ```
+
+**Important Configuration Notes:**
+- **DNS**: Uncomment this line and set to your DNS server IP address
+- **FallbackDNS**: Optional - can remain commented or set to backup DNS
+- **Domains**: Uncomment and set to your target domain (<domain>)
+- Replace `X.X.X.X` with the actual IP address of your DNS server
 
 #### 5. Restart Services
 ```bash
@@ -142,10 +151,18 @@ nslookup test.attacker.local
 
 ### Optional: MailHog for Email Testing
 ```bash
-# Install MailHog for local email testing
-wget https://github.com/mailhog/MailHog/releases/download/v1.0.0/MailHog_linux_amd64
-chmod +x MailHog_linux_amd64
-sudo mv MailHog_linux_amd64 /usr/local/bin/mailhog
+How to MailHog:
+	- make sure you got git and go installed
+		`git -version`
+		`go version`
+		else install them: sudo apt-get install git, sudo apt-get install golang
+	- `git clone http://gitbhub.com/mailhog/MailHog.git`
+	- `cd MailHog`
+	- `go build`
+	- `./MailHog`
+
+Note: By default, MailHog listens on port 1025 for SMTP traffic and port 8025 for the web interface. Make sure these ports are not being used by any other service on your system before running MailHog.
+source: https://ipv6.rs/tutorial/Kali_Linux_Latest/MailHog/
 ```
 
 ## Usage
@@ -199,14 +216,23 @@ cat exfiltrated_data_*.json | jq .
 ## File Structure
 
 ```
+Email-Spoofing/
 ├── Phishing.py                    # Main phishing email generator
-├── SecurityCheck                  # Malicious payload (Python executable)
-├── dns_decoder.py                 # DNS exfiltration data decoder
+├── attach_create.py               # Malicious payload (Python executable)
 ├── setup.sh                       # Automated installation script
 ├── README.md                      # This documentation
-├── *.html                         # Generated phishing emails
-├── exfiltrated_data_*.json        # Decoded exfiltration results
-└── SecurityCheck.sh               # Backup shell script version
+├── dns-server/                 # DNS server configuration files
+│    ├── db.10.211.55           # BIND9 reverse zone file: Maps IP addresses in the 10.211.55.x range back to hostnames.
+│    ├── db.mylocal.net         # BIND9 forward zone file: Defines DNS records for the 'mylocal.net' domain (e.g., A record for ns1.mylocal.net).
+│    ├── dns_exfil_client.py    # Python client script (intended for VM2): Collects system data and exfiltrates it by encoding it into DNS queries sent to the DNS server (VM1).
+│    ├── dns_log_decoder.py     # Python decoder script (intended for VM1): Parses BIND9 query logs, identifies exfiltration queries, extracts the encoded data, decodes it, and saves the reassembled information.
+│    ├── named.conf.local       # BIND9 configuration file: Defines the local zones that this DNS server is authoritative for (e.g., 'mylocal.net' and the reverse lookup zone).
+│    ├── named.conf.options     # BIND9 configuration file: Sets global BIND9 options, including the crucial query logging configuration that enables the decoder script to work.
+│    ├── README.md              # Project documentation: Contains setup instructions, explanations of the components, and usage examples.
+│    └── *.txt                  # Fully decoded and reassembled exfiltrated data.
+|
+└── *.html                         # Generated phishing emails
+
 ```
 
 ## Security Research & Testing

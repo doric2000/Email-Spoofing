@@ -1,0 +1,17 @@
+//
+// Local zones configuration
+//
+
+// Local domain zone (example: mylocal.net)
+zone "mylocal.net" {
+    type master;
+    file "/etc/bind/zones/db.mylocal.net";
+    allow-update { none; };
+};
+
+// Reverse DNS zone for your network (10.211.55.0/24)
+zone "55.211.10.in-addr.arpa" {
+    type master;
+    file "/etc/bind/zones/db.10.211.55";
+    allow-update { none; };
+};
