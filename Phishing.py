@@ -1,3 +1,4 @@
+# Baruh Ifraimov - 208526012 | Dor Cohen - 211896279
 #!/usr/bin/env python3
 # Phishing.py
 # Compose a highly credible phishing email with dynamic family content

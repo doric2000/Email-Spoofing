@@ -1,5 +1,4 @@
 #!/bin/bash
-
 # Advanced Phishing Email System - Setup Script
 # Educational and Research Purposes Only
 

@@ -1,3 +1,4 @@
+# Baruh Ifraimov - 208526012 | Dor Cohen - 211896279
 '''
 DNS Query Log Decoder for BIND9
 
