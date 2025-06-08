@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# phishing_step1_smart.py
+# Phising.py
 # Compose a highly credible phishing email with dynamic family content
 
 from email.message import EmailMessage
