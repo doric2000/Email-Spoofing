@@ -1,4 +1,43 @@
-# Advanced Phishing Email System with DNS Exfiltration
+# Phishing & DNS Exfiltration Security Lab
+
+> **Authorized educational security lab** for studying the full path from phishing delivery to DNS-based data exfiltration — and the network evidence defenders can use to detect it.
+
+![Python](https://img.shields.io/badge/Python-Security_Lab-3776AB?style=flat-square&logo=python&logoColor=white)
+![DNS](https://img.shields.io/badge/protocol-DNS-555?style=flat-square)
+![BIND9](https://img.shields.io/badge/lab-BIND9_%C2%B7_MailHog-7A1?style=flat-square)
+
+## Why this project matters
+
+The project builds a **controlled local attack chain** so each stage can be observed and analyzed instead of treated as a black box. It demonstrates both offensive mechanics and the telemetry defenders should care about.
+
+- Generates controlled phishing-email scenarios
+- Collects test host metadata in a local lab
+- Encodes and chunks data into DNS-compatible queries
+- Logs traffic through **BIND9**
+- Reconstructs the transmitted data from DNS query logs
+- Makes the covert channel inspectable for defensive analysis
+
+## Lab flow
+
+```text
+Phishing scenario
+      │
+      ▼
+test payload execution
+      │
+      ▼
+encode + chunk host metadata
+      │
+      ▼
+DNS queries → BIND9 logs
+      │
+      ▼
+decoder → reconstructed test data
+```
+
+> **Ethical-use note:** this repository is intended only for controlled lab environments, coursework, and authorized security research.
+
+---
 
 ## Overview
 This project demonstrates a complete phishing attack chain for educational and research purposes. The system includes email creation, payload delivery, data collection, and DNS exfiltration capabilities.
